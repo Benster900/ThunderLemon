@@ -1,2 +1,4 @@
 bind_version: 9.11.1
+bind_user: named
+bind_service_name: named
 sysconfdir: '/etc/bind'

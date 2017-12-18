@@ -3,42 +3,64 @@
 ####################################################################
 - name: Create named group
   group:
-    name: bind
+    name: '{{ bind_user }}'
     state: present
 
 - name: Create named user
   user:
-    name: bind
+    name: '{{ bind_user }}'
+    uid: 88
     home: /var/lib/bind
-    shell: /sbin/nologin
-    groups: bind
+    shell: /usr/sbin/nologin
+    groups: '{{ bind_user }}'
 
 - name: Create directories for BIND
   file:
     path: /var/cache/bind
-    owner: bind
-    group: bind
+    owner: '{{ bind_user }}'
+    group: '{{ bind_user }}'
     state: directory
 
 - file:
-    path: /var/run/named
-    owner: bind
-    group: bind
+    path: /var/named
+    owner: '{{ bind_user }}'
+    group: '{{ bind_user }}'
     state: directory
     mode: 775
+
+- file:
+    path: /var/run/named
+    owner: '{{ bind_user }}'
+    group: '{{ bind_user }}'
+    state: directory
+    mode: 775
+
+- file:
+    path: /var/log/named
+    owner: '{{ bind_user }}'
+    group: '{{ bind_user }}'
+    state: directory
+
+- name: Copy named.conf
+  template:
+    src: conf/bind/named.conf
+    dest: /etc/bind/named.conf
+
+- name: Copy named.service
+  template:
+    src: conf/bind/named.service
+    dest: /etc/systemd/system/{{ bind_service_name }}.service
 
 - name: Move bind9.default
   template:
     src: conf/bind/bind9.default
     dest: /etc/default/bind9
 
-- name: Move bind9.init
-  template:
-    src: conf/bind/bind9.init
-    dest: /etc/init.d/bind9
-    mode: 755
-- name: Update rc.d
-  shell: update-rc.d bind9 defaults
+- name: Download DNS root servers file
+  get_url:
+    url: 'http://www.internic.net/domain/named.root'
+    dest: /var/named/root.servers
+    mode: 0440
 
 ####################################################################
 #  Download Bind9 from source, compile, and install
@@ -55,18 +77,27 @@
     chdir: /tmp/bind-{{ bind_version }}
 
 - name: BIND MAKE stage
-  shell: make
+  shell: sudo make
   args:
     chdir: /tmp/bind-{{ bind_version }}
 
 - name: BIND MAKE INSTALL stage
-  shell: make install
+  shell: sudo make install
   args:
     chdir: /tmp/bind-{{ bind_version }}
 
+- name: Generate /etc/bind/rndc.conf and /etc/bind/rndc.key
+  shell: rndc-confgen -r /dev/urandom > /etc/bind/rndc.conf
+
+- name: /var/named owner set to root
+  file:
+    path: /var/named
+    owner: root
+    group: root
+
 - name: Start bind
   service:
-    name: bind9
+    name: '{{ bind_service_name }}'
     state: restarted
 
 ####################################################################

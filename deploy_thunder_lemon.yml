@@ -1,5 +1,6 @@
 - hosts: dnspot
   tasks:
-    - include_vars: group_vars/bind 
+    - include_vars: group_vars/bind
     - import_tasks: roles/init.yml
     - import_tasks: roles/bind/deploy_bind.yml
+    - import_tasks: roles/firewall.yml
