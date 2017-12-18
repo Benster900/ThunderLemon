@@ -30,8 +30,8 @@
 
 - file:
     path: /var/run/named
-    owner: '{{ bind_user }}'
-    group: '{{ bind_user }}'
+    owner: root
+    group: root
     state: directory
     mode: 775
 
@@ -41,12 +41,7 @@
     group: '{{ bind_user }}'
     state: directory
 
-- name: Copy named.conf
-  template:
-    src: conf/bind/named.conf
-    dest: /etc/bind/named.conf
-
-- name: Copy named.service
+- name: Copy {{ bind_service_name }}.service
   template:
     src: conf/bind/named.service
     dest: /etc/systemd/system/{{ bind_service_name }}.service
@@ -60,6 +55,8 @@
   get_url:
     url: 'http://www.internic.net/domain/named.root'
     dest: /var/named/root.servers
+    owner: '{{ bind_user }}'
+    group: '{{ bind_user }}'
     mode: 0440
 
 ####################################################################
@@ -86,6 +83,11 @@
   args:
     chdir: /tmp/bind-{{ bind_version }}
 
+- name: Copy named.conf
+  template:
+    src: conf/bind/named.conf
+    dest: /etc/bind/named.conf
+
 - name: Generate /etc/bind/rndc.conf and /etc/bind/rndc.key
   shell: rndc-confgen -r /dev/urandom > /etc/bind/rndc.conf
 
@@ -94,6 +96,7 @@
     path: /var/named
     owner: root
     group: root
+    mode: 755
 
 - name: Start bind
   service:
