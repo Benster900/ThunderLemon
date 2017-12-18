@@ -1,0 +1,80 @@
+####################################################################
+#  Create bind user and directories
+####################################################################
+- name: Create named group
+  group:
+    name: bind
+    state: present
+
+- name: Create named user
+  user:
+    name: bind
+    home: /var/lib/bind
+    shell: /sbin/nologin
+    groups: bind
+
+- name: Create directories for BIND
+  file:
+    path: /var/cache/bind
+    owner: bind
+    group: bind
+    state: directory
+
+- file:
+    path: /var/run/named
+    owner: bind
+    group: bind
+    state: directory
+    mode: 775
+
+- name: Move bind9.default
+  template:
+    src: conf/bind/bind9.default
+    dest: /etc/default/bind9
+
+- name: Move bind9.init
+  template:
+    src: conf/bind/bind9.init
+    dest: /etc/init.d/bind9
+    mode: 755
+- name: Update rc.d
+  shell: update-rc.d bind9 defaults
+
+####################################################################
+#  Download Bind9 from source, compile, and install
+####################################################################
+- name: Download Bind {{ bind_version }}
+  unarchive:
+    src: https://ftp.isc.org/isc/bind9/{{ bind_version }}/bind-{{ bind_version }}.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- name: BIND configure with DNStap
+  shell: ./configure --enable-dnstap --with-openssl --enable-threads --with-libxml2 --with-json --sysconfdir {{ sysconfdir }}
+  args:
+    chdir: /tmp/bind-{{ bind_version }}
+
+- name: BIND MAKE stage
+  shell: make
+  args:
+    chdir: /tmp/bind-{{ bind_version }}
+
+- name: BIND MAKE INSTALL stage
+  shell: make install
+  args:
+    chdir: /tmp/bind-{{ bind_version }}
+
+- name: Start bind
+  service:
+    name: bind9
+    state: restarted
+
+####################################################################
+#  Slack notification
+####################################################################
+- name: Send slack notification when done
+  slack:
+    token: "{{ slack_token }}"
+    msg: '{{ ansible_nodename }}:{{ ansible_default_ipv4.address }} - Finished compiling Bind9 from source {{ ansible_nodename }}'
+    channel: "{{ slack_channel }}"
+  when: slack_token is undefined

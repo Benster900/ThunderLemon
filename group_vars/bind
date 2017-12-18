@@ -1,0 +1,2 @@
+bind_version: 9.11.1
+sysconfdir: '/etc/bind'

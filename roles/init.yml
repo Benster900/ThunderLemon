@@ -1,0 +1,46 @@
+####################################################################
+# Install all nencessary packages
+####################################################################
+- name: Run the equivalent of "apt-get update" as a separate step
+  apt:
+    update_cache: yes
+
+- name: Install/Setup packages
+  package:
+    name: '{{ item }}'
+    state: latest
+  with_items:
+    - gcc
+    - libssl-dev
+    - libprotobuf-c0-dev
+    - protobuf-c-compiler
+    - dh-autoreconf
+    - pkg-config
+    - libevent-dev
+    - libxml2
+    - libxml2-dev
+    - libjson-c-dev
+    - haveged
+    - gnupg
+    - wget
+
+####################################################################
+#  Download, compile, and install fstrm
+####################################################################
+- name: Compile/Install FSTRM
+  git:
+    repo: https://github.com/farsightsec/fstrm.git
+    dest: /tmp/fstrm
+- shell: cd fstrm && ./autogen.sh && ./configure && make && sudo make install
+  args:
+    chdir: /tmp
+
+####################################################################
+#  Slack notification
+####################################################################
+- name: Send slack notification when done
+  slack:
+    token: "{{ slack_token }}"
+    msg: '{{ ansible_nodename }}:{{ ansible_default_ipv4.address }} - Init setup done {{ ansible_nodename }}'
+    channel: "{{ slack_channel }}"
+  when: slack_token is undefined
